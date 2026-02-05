@@ -25,6 +25,8 @@ ci:
 	docker compose up -d hello
 	sleep 2
 	curl -fs http://localhost:8080 > /dev/null
+	curl -fs http://localhost:8080/health > /dev/null
+	curl -fs http://localhost:8080/hello > /dev/null
 
 deploy: ci
 	docker compose up -d --build hello
