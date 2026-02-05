@@ -1,0 +1,17 @@
+# Experimental: no version pins.
+# Use this only if you know what you're doing and are willing to debug dependency issues.
+# Staff/instructor support is for requirements.txt (pinned).
+mlflow
+dvc
+pydantic
+fastapi
+uvicorn
+scikit-learn
+pandas
+numpy
+evidently
+joblib
+pytest
+pre-commit
+black
+ruff
