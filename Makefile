@@ -5,7 +5,7 @@
 .RECIPEPREFIX := >
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: setup up down 
+.PHONY: ci deploy
 
 setup:
 	python -m venv .venv
@@ -19,4 +19,13 @@ up:
 
 down:
 	docker compose down
+
+ci:
+	docker compose build hello
+	docker compose up -d hello
+	sleep 2
+	curl -fs http://localhost:8080 > /dev/null
+
+deploy: ci
+	docker compose up -d --build hello
 
