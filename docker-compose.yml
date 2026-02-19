@@ -4,11 +4,13 @@ services:
     ports:
       - "8080:8000"
     restart: unless-stopped
+
   hello:
     build: ./lab1
     ports:
       - "8081:80"
     restart: unless-stopped
+
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.17.0
     command: >
@@ -23,5 +25,3 @@ services:
     ports:
       - "5000:5000"
     restart: unless-stopped
-volumes:
-  mlruns:

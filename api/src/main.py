@@ -1,48 +1,63 @@
-from fastapi import FastAPI, Response, status
-from fastapi.responses import HTMLResponse
+# api/src/main.py
+from fastapi import FastAPI, Response, status, HTTPException
+from src.schema import PredictRequest, PredictResponse
+import joblib
+import os
+
+# baked-in path inside the image
+MODEL_PATH = "/app/model/model.joblib"
+VERSION_PATH = "/app/model/VERSION"
 
 app = FastAPI(title="MLOps Service")
 
-# TODO 1: Create GET /health that returns JSON like {"status": "ok"}
+# Load model once at startup (fail fast if missing)
+model = None
+model_version = None
+try:
+    if not os.path.exists(MODEL_PATH):
+        raise FileNotFoundError(f"Model not found at {MODEL_PATH} inside image")
+    model = joblib.load(MODEL_PATH)
+    if os.path.exists(VERSION_PATH):
+        try:
+            with open(VERSION_PATH, "r") as f:
+                model_version = f.read().strip()
+        except Exception:
+            model_version = None
+    print("Model loaded successfully. version:", model_version)
+except Exception as e:
+    # Print a clear error for logs and leave model = None
+    print("ERROR loading model at startup:", e)
+    model = None
+    model_version = None
+
+def _check_model_loaded():
+    """
+    Raises a 503 error if the model isn't loaded. Otherwise, return.
+    """
+    if model is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Model not loaded in image")
+
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    """
+    Health returns 200 only if model is loaded into the image.
+    Otherwise returns 503 so orchestrators / students see model missing.
+    """
+    _check_model_loaded()
+    return {"status": "ok", "model_version": model_version}
 
-# TODO 2: Create GET /hello that returns an HTML page using HTMLResponse
 @app.head("/health")
 def health_head():
+    _check_model_loaded()
     return Response(status_code=status.HTTP_200_OK)
 
-@app.get("/hello", response_class=HTMLResponse)
-def hello():
-    return """<!doctype html>
-    <html>
-    <head>Hello!</head>
-    <body>
-    <p>This page is served by a FastAPI endpoint</p>
-    </body>
-    </html>
-    """
-
-from src.schema import PredictRequest, PredictResponse
 
 @app.post("/predict", response_model=PredictResponse)
-def predict(req: PredictRequest) -> PredictResponse:
-    """
-    Stub inference endpoint.
-
-    Later labs will replace this logic with:
-    - preprocessing pipeline
-    - trained model artifact load
-    - real prediction + probability
-    """
-
-    # Placeholder heuristic: if certain spammy tokens appear, call it spam.
-    text = f"{req.subject} {req.message}".lower()
-    spammy = any(tok in text for tok in ["free", "winner", "click", "urgent", "prize", "$$$"])
-
-    label = "spam" if spammy else "ham"
-    score = 0.90 if spammy else 0.40  # stub confidence
-
-    return PredictResponse(label=label, score=score)
-
+def predict(req: PredictRequest):
+    _check_model_loaded()
+    text = (req.subject or "") + " " + (req.message or "")
+    label = model.predict([text])[0]
+    score = None
+    if hasattr(model, "predict_proba"):
+        score = float(model.predict_proba([text])[0].max())
+    return PredictResponse(label=str(label), score=score, model_version=model_version)
