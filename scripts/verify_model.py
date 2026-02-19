@@ -60,6 +60,7 @@ def extract_numeric_label_from_response(resp):
     else:
         raw = resp["label"]
     try:
+        # TODO: map this lable to an integer
         return int(raw)
     except Exception:
         # maybe the API returns nested or different format; give up gracefully
